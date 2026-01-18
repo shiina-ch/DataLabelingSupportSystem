@@ -12,7 +12,7 @@ namespace DAL.Repositories
         {
             return await _dbSet
                 .Include(a => a.DataItem)
-                .Where(a => a.ProjectId == projectId && a.AnnotatorId == annotatorId)
+                .Where(a => a.AnnotatorId == annotatorId && (projectId == 0 || a.ProjectId == projectId))
                 .OrderByDescending(a => a.AssignedDate)
                 .ToListAsync();
         }
@@ -32,10 +32,10 @@ namespace DAL.Repositories
                 .Include(a => a.DataItem)
                 .Include(a => a.Project)
                     .ThenInclude(p => p.LabelClasses)
-                .Include(a => a.Annotations) 
+                .Include(a => a.Annotations)
+                .Include(a => a.ReviewLogs)
                 .FirstOrDefaultAsync(a => a.Id == id);
         }
-
         public async Task<List<DataItem>> GetUnassignedDataItemsAsync(int projectId, int quantity)
         {
             return await _context.DataItems
