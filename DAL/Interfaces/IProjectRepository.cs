@@ -1,6 +1,4 @@
 ﻿using DTOs.Entities;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace DAL.Interfaces
 {
@@ -8,5 +6,7 @@ namespace DAL.Interfaces
     {
         Task<Project?> GetProjectWithDetailsAsync(int id);
         Task<List<Project>> GetProjectsByManagerIdAsync(string managerId);
+
+        Task<List<Project>> GetProjectsByAnnotatorAsync(string annotatorId);
     }
 }

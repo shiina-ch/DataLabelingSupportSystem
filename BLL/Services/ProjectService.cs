@@ -17,8 +17,7 @@ namespace BLL.Services
             _projectRepository = projectRepository;
             _userRepository = userRepository;
         }
-
-        public async Task<Project> CreateProjectAsync(string managerId, CreateProjectRequest request)
+        public async Task<ProjectDetailResponse> CreateProjectAsync(string managerId, CreateProjectRequest request)
         {
             var manager = await _userRepository.GetByIdAsync(managerId);
             if (manager == null) throw new Exception("User not found");
@@ -32,12 +31,40 @@ namespace BLL.Services
                 Name = request.Name,
                 PricePerLabel = request.PricePerLabel,
                 TotalBudget = request.TotalBudget,
-                Deadline = request.Deadline
-            };
+                Deadline = request.Deadline,
 
+            };
             await _projectRepository.AddAsync(project);
             await _projectRepository.SaveChangesAsync();
-            return project;
+            return new ProjectDetailResponse
+            {
+                Id = project.Id,
+                Name = project.Name,
+                PricePerLabel = project.PricePerLabel,
+                TotalBudget = project.TotalBudget,
+                Deadline = project.Deadline,
+                ManagerId = project.ManagerId,
+                ManagerName = manager.FullName, 
+                ManagerEmail = manager.Email,
+                Labels = new List<string>(),   
+                TotalDataItems = 0,            
+                ProcessedItems = 0
+            };
+        }
+
+        public async Task<List<ProjectSummaryResponse>> GetAssignedProjectsAsync(string annotatorId)
+        {
+            var projects = await _projectRepository.GetProjectsByAnnotatorAsync(annotatorId);
+
+            return projects.Select(p => new ProjectSummaryResponse
+            {
+                Id = p.Id,
+                Name = p.Name,
+                Deadline = p.Deadline,
+                Status = p.Deadline < DateTime.UtcNow ? "Expired" : "Active",
+                TotalDataItems = 0,
+                Progress = 0
+            }).ToList();
         }
 
         public async Task ImportDataItemsAsync(int projectId, List<string> storageUrls)

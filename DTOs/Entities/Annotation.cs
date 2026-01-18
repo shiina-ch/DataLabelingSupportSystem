@@ -7,15 +7,12 @@ namespace DTOs.Entities
     {
         [Key]
         public int Id { get; set; }
-
         public int AssignmentId { get; set; }
         [ForeignKey("AssignmentId")]
         public virtual Assignment Assignment { get; set; } = null!;
-
         public int ClassId { get; set; }
         [ForeignKey("ClassId")]
         public virtual LabelClass LabelClass { get; set; } = null!;
-
         [Required]
         public string Value { get; set; } = "{}";
     }

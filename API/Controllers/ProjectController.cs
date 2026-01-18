@@ -108,6 +108,16 @@ namespace API.Controllers
             }
         }
 
+        [HttpGet("annotator/assigned")]
+        public async Task<IActionResult> GetAssignedProjects()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            var projects = await _projectService.GetAssignedProjectsAsync(userId);
+            return Ok(projects);
+        }
+
         [HttpGet("manager/me")]
         public async Task<IActionResult> GetMyProjects()
         {

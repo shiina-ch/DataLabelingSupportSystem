@@ -57,19 +57,25 @@ namespace BLL.Services
                 Status = a.Status
             }).ToList();
         }
-
         public async Task<TaskResponse?> GetTaskDetailAsync(int assignmentId, string annotatorId)
         {
             var assignment = await _assignmentRepo.GetAssignmentWithDetailsAsync(assignmentId);
+
             if (assignment == null) return null;
             if (assignment.AnnotatorId != annotatorId) throw new Exception("Unauthorized");
 
-            // Nếu trạng thái là Assigned, chuyển sang InProgress khi mở ra làm
             if (assignment.Status == "Assigned")
             {
                 assignment.Status = "InProgress";
                 _assignmentRepo.Update(assignment);
                 await _assignmentRepo.SaveChangesAsync();
+            }
+
+            string? rejectReason = null;
+            if (assignment.Status == "Rejected")
+            {
+                var lastLog = assignment.ReviewLogs.OrderByDescending(r => r.CreatedAt).FirstOrDefault();
+                rejectReason = lastLog?.Comment;
             }
 
             return new TaskResponse
@@ -79,6 +85,8 @@ namespace BLL.Services
                 StorageUrl = assignment.DataItem?.StorageUrl ?? "",
                 ProjectName = assignment.Project?.Name ?? "",
                 Status = assignment.Status,
+                RejectReason = rejectReason,
+
                 Labels = assignment.Project?.LabelClasses.Select(l => new LabelResponse
                 {
                     Id = l.Id,
@@ -91,6 +99,20 @@ namespace BLL.Services
                     an.ClassId,
                     an.Value
                 }).ToList<object>()
+            };
+        }
+
+        public async Task<AnnotatorStatsResponse> GetAnnotatorStatsAsync(string annotatorId)
+        {
+            var tasks = await _assignmentRepo.GetAssignmentsByAnnotatorAsync(0, annotatorId);
+
+            return new AnnotatorStatsResponse
+            {
+                TotalAssigned = tasks.Count,
+                Pending = tasks.Count(t => t.Status == "Assigned" || t.Status == "InProgress"),
+                Submitted = tasks.Count(t => t.Status == "Submitted"),
+                Rejected = tasks.Count(t => t.Status == "Rejected"),
+                Completed = tasks.Count(t => t.Status == "Completed")
             };
         }
 

@@ -21,13 +21,23 @@ namespace API.Controllers
         [HttpPost("assign")]
         public async Task<IActionResult> AssignTasks([FromBody] AssignTaskRequest request)
         {
-            // TODO: Validate Role Manager
             try
             {
                 await _taskService.AssignTasksToAnnotatorAsync(request);
                 return Ok(new { Message = "Tasks assigned successfully" });
             }
             catch (Exception ex) { return BadRequest(new { Message = ex.Message }); }
+        }
+
+        [HttpGet("dashboard-stats")]
+        public async Task<IActionResult> GetMyStats()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            // Bạn cần thêm hàm này vào Interface ITaskService trước
+            var stats = await _taskService.GetAnnotatorStatsAsync(userId);
+            return Ok(stats);
         }
 
         [HttpGet("my-tasks/{projectId}")]

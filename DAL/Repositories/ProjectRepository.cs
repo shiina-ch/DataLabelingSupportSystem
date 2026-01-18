@@ -1,24 +1,19 @@
 ﻿using DAL.Interfaces;
 using DTOs.Entities;
 using Microsoft.EntityFrameworkCore;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace DAL.Repositories
 {
     public class ProjectRepository : Repository<Project>, IProjectRepository
     {
-        public ProjectRepository(ApplicationDbContext context) : base(context)
-        {
-        }
+        public ProjectRepository(ApplicationDbContext context) : base(context) { }
 
         public async Task<Project?> GetProjectWithDetailsAsync(int id)
         {
             return await _context.Projects
-                .Include(p => p.Manager)        
-                .Include(p => p.LabelClasses)   
-                .Include(p => p.DataItems)     
+                .Include(p => p.Manager)
+                .Include(p => p.LabelClasses)
+                .Include(p => p.DataItems)
                 .FirstOrDefaultAsync(p => p.Id == id);
         }
 
@@ -26,8 +21,19 @@ namespace DAL.Repositories
         {
             return await _context.Projects
                 .Include(p => p.DataItems)
-                .OrderByDescending(p => p.Id)
                 .Where(p => p.ManagerId == managerId)
+                .OrderByDescending(p => p.Id)
+                .ToListAsync();
+        }
+
+        public async Task<List<Project>> GetProjectsByAnnotatorAsync(string annotatorId)
+        {
+            return await _context.Assignments
+                .Where(a => a.AnnotatorId == annotatorId)
+                .Include(a => a.Project)
+                .Select(a => a.Project)
+                .Distinct()
+                .OrderByDescending(p => p.Id)
                 .ToListAsync();
         }
     }
