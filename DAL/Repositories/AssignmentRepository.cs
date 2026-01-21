@@ -63,22 +63,29 @@ namespace DAL.Repositories
                 .ToListAsync();
         }
 
-public async Task<AnnotatorStatsResponse> GetAnnotatorStatsAsync(string annotatorId)
-{
-    var stats = await _context.Assignments
-        .Where(a => a.AnnotatorId == annotatorId)
-        .GroupBy(a => 1)
-        .Select(g => new AnnotatorStatsResponse
+        public async Task<AnnotatorStatsResponse> GetAnnotatorStatsAsync(string annotatorId)
         {
-            TotalAssigned = g.Count(),
-            Pending = g.Count(x => x.Status == "Assigned" || x.Status == "InProgress" || x.Status == "New"),
-            Submitted = g.Count(x => x.Status == "Submitted"),
-            Rejected = g.Count(x => x.Status == "Rejected"),
-            Completed = g.Count(x => x.Status == "Completed" || x.Status == "Approved")
-        })
-        .FirstOrDefaultAsync();
+            var stats = await _context.Assignments
+                .Where(a => a.AnnotatorId == annotatorId)
+                .GroupBy(a => 1)
+                .Select(g => new
+                {
+                    Total = g.Count(),
+                    Submitted = g.Count(x => x.Status == "Submitted"),
+                    Rejected = g.Count(x => x.Status == "Rejected"),
+                    Completed = g.Count(x => x.Status == "Completed" || x.Status == "Approved")
+                })
+                .Select(x => new AnnotatorStatsResponse
+                {
+                    TotalAssigned = x.Total,
+                    Submitted = x.Submitted,
+                    Rejected = x.Rejected,
+                    Completed = x.Completed,
+                    Pending = x.Total - (x.Submitted + x.Rejected + x.Completed)
+                })
+                .FirstOrDefaultAsync();
 
-    return stats ?? new AnnotatorStatsResponse();
-}
+            return stats ?? new AnnotatorStatsResponse();
+        }
     }
 }
