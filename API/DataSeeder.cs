@@ -12,100 +12,89 @@ namespace API
             using var scope = serviceProvider.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-            // 1. Seed Users (Nếu chưa có)
+            // -----------------------------------------------------------
+            // 1. ĐẢM BẢO CÓ USER (Nếu chưa có ai thì tạo mới)
+            // -----------------------------------------------------------
             if (!await context.Users.AnyAsync())
             {
                 var users = new List<User>
                 {
-                    new User
-                    {
-                        Id = Guid.NewGuid().ToString(),
-                        FullName = "Admin System",
-                        Email = "Admin@Gmail.com",
-                        Role = UserRoles.Admin,
-                        PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456")
-                    },
-                    new User
-                    {
-                        Id = "manager-01", // Hard-code ID để dễ link dữ liệu
-                        FullName = "Manager Boss",
-                        Email = "Manager@Gmail.com",
-                        Role = UserRoles.Manager,
-                        PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456")
-                    },
-                    new User
-                    {
-                        Id = "staff-01", // Hard-code ID để gán task
-                        FullName = "Staff Annotator",
-                        Email = "Staff@Gmail.com",
-                        Role = UserRoles.Annotator,
-                        PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456")
-                    }
+                    new User { FullName = "Admin System", Email = "Admin@Gmail.com", Role = UserRoles.Admin, PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456") },
+                    new User { FullName = "Manager Boss", Email = "Manager@Gmail.com", Role = UserRoles.Manager, PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456") },
+                    new User { FullName = "Staff Annotator", Email = "Staff@Gmail.com", Role = UserRoles.Annotator, PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456") }
                 };
-
                 await context.Users.AddRangeAsync(users);
                 await context.SaveChangesAsync();
             }
 
-            // 2. Seed Project & Data (Nếu chưa có Project nào)
+            // -----------------------------------------------------------
+            // 2. LẤY ID CỦA MANAGER VÀ STAFF THỰC TẾ TRONG DB
+            // (Fix lỗi Foreign Key Crash)
+            // -----------------------------------------------------------
+            var manager = await context.Users.FirstOrDefaultAsync(u => u.Role == UserRoles.Manager);
+            var staff = await context.Users.FirstOrDefaultAsync(u => u.Role == UserRoles.Annotator);
+
+            // Nếu lỡ DB cũ không có Manager/Staff thì tạo tạm để không lỗi
+            if (manager == null)
+            {
+                manager = new User { FullName = "Fallback Manager", Email = "manager_new@test.com", Role = UserRoles.Manager, PasswordHash = "123456" };
+                context.Users.Add(manager);
+            }
+            if (staff == null)
+            {
+                staff = new User { FullName = "Fallback Staff", Email = "staff_new@test.com", Role = UserRoles.Annotator, PasswordHash = "123456" };
+                context.Users.Add(staff);
+            }
+            await context.SaveChangesAsync(); // Lưu để lấy ID thật
+
+            // -----------------------------------------------------------
+            // 3. TẠO PROJECT (Dùng ID thật vừa lấy)
+            // -----------------------------------------------------------
             if (!await context.Projects.AnyAsync())
             {
-                // Tạo 1 Dự án mẫu
                 var project = new Project
                 {
                     Name = "Dự án Phân loại Xe cộ (Demo)",
-                    Description = "Dự án này dùng để test tính năng Dashboard và Progress.",
-                    ManagerId = "manager-01", // Gán cho ông Manager trên
+                    Description = "Dự án test Dashboard.",
+                    ManagerId = manager.Id, // <--- DÙNG ID THẬT, KHÔNG HARD-CODE
                     PricePerLabel = 5000,
                     TotalBudget = 10000000,
                     Deadline = DateTime.UtcNow.AddDays(7),
-                    CreatedDate = DateTime.UtcNow,
-                    AllowGeometryTypes = "Rectangle"
+                    CreatedDate = DateTime.UtcNow
                 };
 
-                // Thêm Nhãn (Labels)
-                project.LabelClasses.Add(new LabelClass { Name = "Car", Color = "#FF0000", GuideLine = "Vẽ khung quanh xe con" });
-                project.LabelClasses.Add(new LabelClass { Name = "Truck", Color = "#00FF00", GuideLine = "Vẽ khung quanh xe tải" });
-                project.LabelClasses.Add(new LabelClass { Name = "Bike", Color = "#0000FF", GuideLine = "Vẽ khung quanh xe máy" });
+                project.LabelClasses.Add(new LabelClass { Name = "Car", Color = "#FF0000", GuideLine = "Xe con" });
+                project.LabelClasses.Add(new LabelClass { Name = "Bike", Color = "#00FF00", GuideLine = "Xe máy" });
 
-                // Thêm DataItems (Ảnh mẫu)
-                for (int i = 1; i <= 10; i++)
+                for (int i = 1; i <= 5; i++)
                 {
-                    project.DataItems.Add(new DataItem
-                    {
-                        StorageUrl = $"https://via.placeholder.com/600x400?text=Image_{i}", // Ảnh dummy
-                        Status = "New",
-                        UploadedDate = DateTime.UtcNow
-                    });
+                    project.DataItems.Add(new DataItem { StorageUrl = "https://via.placeholder.com/150", Status = "New", UploadedDate = DateTime.UtcNow });
                 }
 
                 await context.Projects.AddAsync(project);
                 await context.SaveChangesAsync();
 
-                // 3. Seed Assignments (Gán việc cho Staff để hiện Dashboard)
-                var dataItems = await context.DataItems.Where(d => d.ProjectId == project.Id).ToListAsync();
-                var staffId = "staff-01";
-
-                var assignments = new List<Assignment>
+                // -----------------------------------------------------------
+                // 4. GIAO VIỆC (Dùng ID thật)
+                // -----------------------------------------------------------
+                var items = project.DataItems.ToList();
+                if (items.Count >= 3)
                 {
-                    // 1 Task đang làm
-                    new Assignment { ProjectId = project.Id, DataItemId = dataItems[0].Id, AnnotatorId = staffId, Status = "InProgress", AssignedDate = DateTime.UtcNow },
-                    // 1 Task đã nộp
-                    new Assignment { ProjectId = project.Id, DataItemId = dataItems[1].Id, AnnotatorId = staffId, Status = "Submitted", AssignedDate = DateTime.UtcNow, SubmittedAt = DateTime.UtcNow },
-                    // 1 Task bị từ chối (Để hiện Rejected đỏ lòm)
-                    new Assignment { ProjectId = project.Id, DataItemId = dataItems[2].Id, AnnotatorId = staffId, Status = "Rejected", AssignedDate = DateTime.UtcNow },
-                    // 1 Task đã xong (Approved)
-                    new Assignment { ProjectId = project.Id, DataItemId = dataItems[3].Id, AnnotatorId = staffId, Status = "Completed", AssignedDate = DateTime.UtcNow, SubmittedAt = DateTime.UtcNow }
-                };
+                    var assignments = new List<Assignment>
+                    {
+                        new Assignment { ProjectId = project.Id, DataItemId = items[0].Id, AnnotatorId = staff.Id, Status = "InProgress", AssignedDate = DateTime.UtcNow },
+                        new Assignment { ProjectId = project.Id, DataItemId = items[1].Id, AnnotatorId = staff.Id, Status = "Submitted", AssignedDate = DateTime.UtcNow },
+                        new Assignment { ProjectId = project.Id, DataItemId = items[2].Id, AnnotatorId = staff.Id, Status = "Rejected", AssignedDate = DateTime.UtcNow }
+                    };
 
-                // Cập nhật trạng thái DataItem tương ứng
-                dataItems[0].Status = "Assigned";
-                dataItems[1].Status = "Assigned";
-                dataItems[2].Status = "Assigned";
-                dataItems[3].Status = "Done";
+                    // Update trạng thái DataItem luôn cho đồng bộ
+                    items[0].Status = "Assigned";
+                    items[1].Status = "Assigned";
+                    items[2].Status = "Assigned";
 
-                await context.Assignments.AddRangeAsync(assignments);
-                await context.SaveChangesAsync();
+                    await context.Assignments.AddRangeAsync(assignments);
+                    await context.SaveChangesAsync();
+                }
             }
         }
     }
