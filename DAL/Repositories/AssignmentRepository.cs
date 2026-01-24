@@ -38,10 +38,11 @@ namespace DAL.Repositories
         public async Task<List<Assignment>> GetAssignmentsForReviewerAsync(int projectId)
         {
             return await _context.Assignments
-                .Include(a => a.DataItem)   
-                .Include(a => a.Annotator)  
+                .Include(a => a.DataItem)
+                .Include(a => a.Project)
+                    .ThenInclude(p => p.LabelClasses)
+                .Include(a => a.Annotations)
                 .Where(a => a.ProjectId == projectId && a.Status == "Submitted")
-                .OrderBy(a => a.SubmittedAt)
                 .ToListAsync();
         }
 
