@@ -74,7 +74,27 @@ namespace BLL.Services
 
             await _assignmentRepo.SaveChangesAsync();
         }
+        public async Task<AssignmentResponse> GetAssignmentByIdAsync(int assignmentId, string userId)
+        {
+            var assignment = await _assignmentRepo.GetAssignmentWithDetailsAsync(assignmentId);
 
+            if (assignment == null) throw new KeyNotFoundException("Task not found");
+            if (assignment.AnnotatorId != userId) throw new UnauthorizedAccessException("Unauthorized access to this task");
+
+            return new AssignmentResponse
+            {
+                Id = assignment.Id,
+                DataItemId = assignment.DataItemId,
+                DataItemUrl = assignment.DataItem.StorageUrl,
+                Status = assignment.Status,
+                AnnotationData = assignment.Annotations?.OrderByDescending(an => an.CreatedAt).FirstOrDefault()?.DataJSON,
+                AssignedDate = assignment.AssignedDate,
+                Deadline = assignment.Project.Deadline,
+                RejectionReason = assignment.Status == "Rejected"
+                    ? assignment.ReviewLogs?.OrderByDescending(r => r.CreatedAt).FirstOrDefault()?.Comment
+                    : null
+            };
+        }
         public async Task<AnnotatorStatsResponse> GetAnnotatorStatsAsync(string annotatorId)
         {
             return await _assignmentRepo.GetAnnotatorStatsAsync(annotatorId);
