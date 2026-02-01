@@ -1,0 +1,27 @@
+name: Performance Test (k6)
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  k6-performance:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          sudo apt update
+          sudo apt install -y k6
+
+      - name: Run PERF-01 - Get Project by ID
+        run: k6 run tests/performance-testing/k6/perf_get_project_by_id.js
+
+      - name: Run PERF-02 - Get Projects of Manager
+        run: k6 run tests/performance-testing/k6/perf_get_project_manager.js
+
+      - name: Run PERF-03 - Get Project Statistics
+        run: k6 run tests/performance-testing/k6/perf_get_project_stats.js
