@@ -10,7 +10,7 @@ API: GET /api/Project/{id}
 Sample: /api/Project/1  
 
 Purpose:  
-Đo hiệu năng truy vấn chi tiết một project cụ thể (baseline).
+Đo hiệu năng truy vấn chi tiết một project cụ thể (baseline)
 
 Load:
 - 20 Virtual Users
@@ -32,7 +32,7 @@ Expected:
 API: GET /api/Project/manager/me  
 
 Purpose:  
-API trả về danh sách project, logic nặng hơn GET by ID.
+API trả về danh sách project
 
 Load:
 - 15 Virtual Users
@@ -55,7 +55,7 @@ API: GET /api/Project/{id}/stats
 Sample: /api/Project/1/stats  
 
 Purpose:  
-API có logic tổng hợp / thống kê, phù hợp demo performance.
+API trả về trang thống kê
 
 Load:
 - 10 Virtual Users
